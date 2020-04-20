@@ -2,6 +2,14 @@
 
 set -e
 
+if [ -z "$DISTRIBUTION_ID" ]; then
+  echo "DISTRIBUTION_ID is not set. Quitting."
+  exit 1
+fi
+
+# Default to invalidate the entire path if SOURCE_PATH not set.
+SOURCE_PATH=${SOURCE_PATH:-/*}
+
 if [ -z "$AWS_S3_BUCKET" ]; then
   echo "AWS_S3_BUCKET is not set. Quitting."
   exit 1
@@ -44,6 +52,12 @@ sh -c "aws s3 sync ${SOURCE_DIR:-.} s3://${AWS_S3_BUCKET}/${DEST_DIR} \
               --no-progress \
               ${ENDPOINT_APPEND} $*"
 
+# Use our dedicated profile and suppress verbose messages.
+# All other flags are optional via `args:` directive.
+sh -c "aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} \
+          --paths '${SOURCE_PATH}' \
+          --profile s3-sync-action $*"
+          
 # Clear out credentials after we're done.
 # We need to re-run `aws configure` with bogus input instead of
 # deleting ~/.aws in case there are other credentials living there.
